@@ -1,5 +1,3 @@
-import cltk
-import nltk
 from nltk.corpus.reader.util import *
 from nltk.corpus.reader.api import *
 from nltk.tokenize import *
@@ -18,10 +16,9 @@ class AncientGreekPunktVar(PunktLanguageVars):
 
 class CapitainCorpusReader(CorpusReader):
     """
-    Reader for corpora that consist of Capitain-compliant documents.
+    Reader for corpora that consist of MyCapitain-compliant documents.
     Sentences and words can be tokenized using the default tokenizers,
     or by custom tokenizers specified as parameters to the constructor.
-
     """
 
     # CorpusView = StreamBackedCorpusView
@@ -34,19 +31,23 @@ class CapitainCorpusReader(CorpusReader):
                  # para_block_reader=read_blankline_block,
                  encoding='utf8'):
         """
-        Construct a new plaintext corpus reader for a set of documents
-        located at the given root directory.  Example usage:
+        Construct a new citable corpus reader for a set of documents
+        located at the given root directory.
 
-
-        :param root: The root directory for this corpus.
-        :param fileids: A list or regexp specifying the fileids in this corpus.
-        :param word_tokenizer: Tokenizer for breaking sentences or
-            paragraphs into words.
-        :param sent_tokenizer: Tokenizer for breaking paragraphs
-            into words.
-        :param para_block_reader: The block reader used to divide the
-            corpus into paragraph blocks.
+        Parameters
+        ----------
+        root : str
+            The root directory for this corpus.
+        fileids : str or list
+            A list or regexp specifying the fileids in this corpus.
+        word_tokenizer : nltk Tokenizer
+            Tokenizer for breaking sentences or paragraphs into words
+        sent_tokenizer : nltk Tokenizer
+            Tokenizer for breaking paragraphs into sentences
+        exclude_tags : list
+            TEI tags whose text should not be extracted.
         """
+
         CorpusReader.__init__(self, root, fileids, encoding)
         self._word_tokenizer = word_tokenizer
         self._sent_tokenizer = sent_tokenizer
@@ -174,6 +175,28 @@ class CapitainCorpusReader(CorpusReader):
         text = self._get_citable_text(fileid)
         return self._read_sents(text, include_cites=True)
 
+    def corpus_cite_words(self):
+        """
+        Get text identifier, tokens and citations for all the tokens in all the files of the corpus.
+
+        WARNING:
+        the file id's must be formatted using a cts compatible format: auth_id.work_id
+
+        Returns
+        -------
+        list (tuple)
+            list of (text_id, cite, token)
+
+        """
+        import os
+        cite_words = []
+        for f in self.fileids():
+            txt_ids = os.path.basename(f).split(".")[:2]
+            _words = [(".".join(txt_ids), w[0], w[1]) for w in self.cite_words(f)]
+            cite_words.extend(_words)
+        return cite_words
+
+
     def paras(self, fileids=None):
         """
         Returns a series of sections, corresponding to the last citeable level identified
@@ -265,23 +288,11 @@ class CapitainCorpusReader(CorpusReader):
 class CiteCorpusView(StreamBackedCorpusView):
     """
     A specialized corpus view for cts-compliant documents.
+    Not implemented yet.
+
+    It may help in case of very large corpora, because MyCapitain can be slow when the cite scheme
+    is very fine-grained (e.g. with poetry, where you have a cite element per line).
     """
 
     def __init__(self, fileid):
         raise NotImplementedError
-
-
-def test():
-    with open('/Users/fmambrini/cltk_data/greek/text/greek_text_first1kgreek/data/tlg0086/tlg014/tlg0086.tlg014.1st1K-grc1.xml') as f:
-        text = CapitainsCtsText(resource=f)
-
-    b,e = 0,0
-    refs = []
-    full_text = ''
-    for ref in text.getReffs(level=len(text.citation)):
-        psg = text.getTextualNode(subreference=ref, simple=True)
-        t = psg.export(Mimetypes.PLAINTEXT, exclude=["tei:note"])
-        full_text += t
-        e += len(t)
-        refs.append((ref, b, e))
-        b = e
