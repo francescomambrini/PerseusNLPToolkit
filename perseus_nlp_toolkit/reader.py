@@ -1,18 +1,13 @@
 from nltk.corpus.reader.util import *
+
+from .tokenize import AncientGreekPunktVar
 from nltk.corpus.reader.api import *
 from nltk.tokenize import *
-from nltk.tokenize.punkt import PunktLanguageVars
+
 
 from MyCapytain.resources.texts.local.capitains.cts import CapitainsCtsText
 from MyCapytain.common.constants import Mimetypes, XPATH_NAMESPACES
 
-
-class AncientGreekPunktVar(PunktLanguageVars):
-    # note that there are two middle dots:
-    # \u00b7 and \u0387!
-
-    sent_end_chars = ("\u0387","·",'.', ';', ":")
-    _re_non_word_chars = r"(?:[\";\*:@\'··])"
 
 class CapitainCorpusReader(CorpusReader):
     """

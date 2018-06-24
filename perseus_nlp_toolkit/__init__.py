@@ -1,1 +1,1 @@
-from cite_corpus_reader.reader import CapitainCorpusReader, AncientGreekPunktVar
+from .reader import CapitainCorpusReader
