@@ -1,4 +1,5 @@
 from nltk.corpus.reader.util import *
+from nltk.corpus.reader.xmldocs import XMLCorpusReader
 
 from .tokenize import AncientGreekPunktVar
 from nltk.corpus.reader.api import *
@@ -8,6 +9,7 @@ from nltk.tokenize import *
 from MyCapytain.resources.texts.local.capitains.cts import CapitainsCtsText
 from MyCapytain.common.constants import Mimetypes, XPATH_NAMESPACES
 
+from .utils import Sentence, Word, Artificial
 
 class CapitainCorpusReader(CorpusReader):
     """
@@ -46,7 +48,8 @@ class CapitainCorpusReader(CorpusReader):
         CorpusReader.__init__(self, root, fileids, encoding)
         self._word_tokenizer = word_tokenizer
         self._sent_tokenizer = sent_tokenizer
-        self._tags_to_exclude = exclude_tags
+        # we copy the list with list() to avoid the notorious problem with mutable default args
+        self._tags_to_exclude = list(exclude_tags)
 
     def _get_citable_text(self, fileid):
         """
@@ -291,3 +294,213 @@ class CiteCorpusView(StreamBackedCorpusView):
 
     def __init__(self, fileid):
         raise NotImplementedError
+
+
+class AGLDTReader(XMLCorpusReader):
+    def __init__(self, root, fileids):
+        XMLCorpusReader.__init__(self, root, fileids)
+
+    def xml(self, fileid=None):
+        from lxml import etree
+
+        # Make sure we have exactly one file -- no concatenating XML.
+        if fileid is None and len(self._fileids) == 1:
+            fileid = self._fileids[0]
+        if not isinstance(fileid, string_types):
+            raise TypeError('Expected a single file identifier string')
+
+        # Read the XML in using lxml.etree.
+        x = etree.parse(self.abspath(fileid))
+
+        return x
+
+    def _is_artificial(self, t):
+        try:
+            t.attrib["artificial"]
+            return(True)
+        except KeyError:
+            return(False)
+
+    def _set_prop_if_there(self, el, p):
+        """
+        Generic function that tries to set a proprety by accessing the appropriate XML attribute;
+        if the attribute is not there, None is returned.
+        This is used for properties like "cite" or "cid" that might
+        or might not be set for all files"""
+        try:
+            s = el.attrib[p]
+        except KeyError:
+            s = None
+        return s
+
+    def get_sentences_metadata(self, fileids=None):
+        """
+        Obtain the metadata stored in the attributes of the sentence element.
+        Return a list that is in sync with the other sentence methods.
+        E.g. you can process sentence nodes and metadata by zipping metadata and annotated sentences together
+
+        Parameters
+        ----------
+        fileids
+
+        Returns
+        -------
+
+        """
+        if fileids is None:
+            fileids = self._fileids
+        elif isinstance(fileids, string_types):
+            fileids = [fileids]
+        smetadata = []
+        for f in fileids:
+            x = self.xml(f)
+            sents = x.xpath("//sentence")
+
+            for s in sents:
+                sid = self._set_prop_if_there(s, "id")
+                docid = self._set_prop_if_there(s, "document_id")
+                subdoc = self._set_prop_if_there(s, "subdoc")
+                m = Sentence(sid, docid, subdoc)
+            smetadata.append(m)
+        return smetadata
+
+    def _get_sent_tokens(self, sentence_el):
+        toks = []
+        words = sentence_el.xpath("word")
+        for w in words:
+            wid = self._set_prop_if_there(w, "id")
+            form = self._set_prop_if_there(w, "form")
+            lemma = self._set_prop_if_there(w, "lemma")
+            postag = self._set_prop_if_there(w, "postag")
+            head = self._set_prop_if_there(w, "head")
+            relation = self._set_prop_if_there(w, "relation")
+            cite = self._set_prop_if_there(w, "cite")
+            if self._is_artificial(w):
+                art_type = self._set_prop_if_there(w, "artificial")
+                t = Artificial(wid, form, lemma, postag, head, relation, cite, art_type)
+            else:
+                t = Word(wid, form, lemma, postag, head, relation, cite)
+            toks.append(t)
+        return toks
+
+    def _get_sents_el(self, fileids=None):
+        if fileids is None:
+            fileids = self._fileids
+        elif isinstance(fileids, string_types):
+            fileids = [fileids]
+
+        sents = []
+
+        for f in fileids:
+            x = self.xml(f)
+            s = x.xpath("//sentence")
+            sents.extend(s)
+
+        return sents
+
+    def annotated_sents(self, fileids=None):
+        sents = self._get_sents_el(fileids)
+        annotated_sents = []
+        for s in sents:
+            toks = self._get_sent_tokens(s)
+            annotated_sents.append(toks)
+        return annotated_sents
+
+    def sents(self, fileids=None):
+        sentels = self._get_sents_el(fileids)
+        sents = []
+        for s in sentels:
+            words = s.xpath("word")
+            sents.append([w.attrib["form"] for w in words])
+        return sents
+
+    def annotated_words(self, fileids=None):
+        asents = self.annotated_sents(fileids)
+        return [w for s in asents for w in s]
+
+    def words(self, fileids=None):
+        awords = self.annotated_words(fileids)
+        return [w.form for w in awords]
+
+    def _is_governed_by_artificial(self, t, tokens):
+        h = t.head
+        for tok in tokens:
+            if tok.id == h:
+                if isinstance(tok, Artificial):
+                    return True
+                else:
+                    return False
+
+    def _find_true_head(self, t, tokens):
+        """
+        Checks a node's head. If this head is an Arificial then it (recursively) searches for the first
+        non-artificial node that is at the root of the subtree.
+        Otherwise, it simply returns the original node's head
+
+        Parameters
+        ----------
+        t : namedtuple
+            Word or Artificial node
+        tokens : list
+            the full sentence, as a list of Artificial or Word
+
+        Returns
+        -------
+        str : the id of the first Word element governing the whole structure
+
+        """
+        arts_ids = [tok.id for tok in tokens if isinstance(tok, Artificial)]
+        h = t.head
+        if h not in arts_ids:
+            return h
+        else:
+            for tok in tokens:
+                if h == tok.id:
+                    # then we found the target immediate head
+                    true_head = tok.head
+                    # now let's check if th is an artificial
+                    if true_head in arts_ids:
+                        true_head = self._find_true_head(tok, tokens)
+            return true_head
+
+    def export_to_conll(self, annotated_sents, out_file, dialect='2009'):
+        """
+        Save the sentences passed to a CoNLL file.
+
+        Parameters
+        ----------
+        annotated_sents : list
+            list of annotated sentences. Each sentence must contain the token as named tuples:
+            Word or Artificial. You can use the method `annotated_sentence` to get them
+        out_file : str
+            filename (and path) to save the output
+        dialect : str
+            the CoNLL dialect
+        """
+
+        c = ""
+        if dialect == '2009':
+            #  ID FORM LEMMA PLEMMA POS PPOS FEAT PFEAT HEAD PHEAD DEPREL PDEPREL FILLPRED PRED APREDs
+            l = "{}\t{}\t{}\t_\t{}\t_\t{}\t_\t{}\t_\t{}\t_\t_\t_\t_\n"
+
+        for s in annotated_sents:
+            toks = [t for t in s if isinstance(t, Word)]
+            for w in toks:
+                realh = self._find_true_head(t,s)
+                relation = w.relation if realh == w.head else "ExD"
+                pos = w.postag[0]
+                feat = "|".join(w.postag)
+                c += l.format(w.id, w.form, w.lemma, pos, feat, realh, relation)
+            c+="\n"
+
+        with open(out_file) as out:
+            out.write(c)
+
+
+
+
+
+
+
+
+
