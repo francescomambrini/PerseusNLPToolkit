@@ -13,4 +13,5 @@ First1K texts that you can download using [CLTK downloader](http://docs.cltk.org
 It lets you load and tokenize your corpus and store citations for all your tokens.
 * a Greek tokenizer (in progress) that *should* work well with [Perseus treebank](https://perseusdl.github.io/treebank_data/) 
 (I am still testing...)
-* a concordance indexer to create ([enhanced!]()) concordances from CTS-compatible texts
+* a concordance indexer to create ([enhanced!](https://github.com/francescomambrini/PerseusNLPToolkit/blob/master/perseus_nlp_toolkit/doc/Concordances%20Next%20Generation.ipynb)) concordances from CTS-compatible texts
+* a class for full morphology tagging of Greek and to lemmatize tagged texts (see [here](https://github.com/francescomambrini/PerseusNLPToolkit/blob/master/perseus_nlp_toolkit/doc/How%20to%20tag%20and%20lemmatize%20Greek.ipynb))
