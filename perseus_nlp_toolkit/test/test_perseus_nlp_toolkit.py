@@ -1,7 +1,8 @@
 import pytest
-from cite_corpus_reader.reader import CapitainCorpusReader
+from perseus_nlp_toolkit import CapitainCorpusReader
 
 root = '/Users/fmambrini/cltk_data/greek/text/greek_text_first1kgreek/data'
+root_perseus = '/Users/fmambrini/cltk_data/greek/text/'
 
 @pytest.fixture
 def aristot_dha():

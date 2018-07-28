@@ -477,6 +477,7 @@ class AGLDTReader(XMLCorpusReader):
         dialect : str
             the CoNLL dialect
         """
+        import logging
 
         c = ""
         if dialect == '2009':
@@ -486,14 +487,23 @@ class AGLDTReader(XMLCorpusReader):
         for s in annotated_sents:
             toks = [t for t in s if isinstance(t, Word)]
             for w in toks:
-                realh = self._find_true_head(t,s)
+                try:
+                    realh = self._find_true_head(w,s)
+                except RecursionError:
+                    logging.error("Problem with the head of token: {}:{}".format(w.cite, w.id))
+                    continue
                 relation = w.relation if realh == w.head else "ExD"
-                pos = w.postag[0]
+                try:
+                    pos = w.postag[0]
+                except IndexError:
+                    pos = "x--------"
+                lemma = w.lemma if w.lemma is not None else "Unknown"
                 feat = "|".join(w.postag)
-                c += l.format(w.id, w.form, w.lemma, pos, feat, realh, relation)
+                form = w.form.replace("̓", "'")
+                c += l.format(w.id, w.form, lemma, pos, feat, realh, relation)
             c+="\n"
 
-        with open(out_file) as out:
+        with open(out_file, "w") as out:
             out.write(c)
 
 
