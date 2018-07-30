@@ -15,7 +15,7 @@ import re
 
 # remember to pass re.VERBOSE as flag!
 tb_pattern = r'''[κχ](?=\w?[ὐὖὔἰἴἀἂἄἈὠᾀᾆἠὢὤὦᾦ])        # deal with the crasis of καί
-            | εἴ|οὐ|μη|μή(?=τε\b|δ[έἐ]\b|[τδθ][᾽']\b)  # conjunctions: εἴτε, ουδέ, μηδέ etc.
+            | (?:εἴ|οὐ|μη|μή)(?=τε\b|δ[έἐ]\b|[τδθ][᾽'])  # conjunctions: εἴτε, ουδέ, μηδέ etc.
             | \w+[᾽']?      # white-space separated words
             | \.\.\.        # ellipsis or lacuna
             |[^\w\s]+
