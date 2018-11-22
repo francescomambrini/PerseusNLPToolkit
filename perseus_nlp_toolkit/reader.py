@@ -361,7 +361,7 @@ class AGLDTReader(XMLCorpusReader):
                 docid = self._set_prop_if_there(s, "document_id")
                 subdoc = self._set_prop_if_there(s, "subdoc")
                 m = Sentence(sid, docid, subdoc)
-            smetadata.append(m)
+                smetadata.append(m)
         return smetadata
 
     def _get_sent_tokens(self, sentence_el):
@@ -462,6 +462,36 @@ class AGLDTReader(XMLCorpusReader):
                     if true_head in arts_ids:
                         true_head = self._find_true_head(tok, tokens)
             return true_head
+
+    def sent_to_dggraph(self, sent):
+        """
+        Creates a Dependency Graph object from an AGLDT sentence
+
+        Parameters
+        ----------
+        sent : list(named tuple)
+            the AGLDT sentence
+
+        Returns
+        -------
+        nltk.parse.DependencyGraph
+
+        """
+
+        from nltk.parse import DependencyGraph
+
+        strsent = "\n".join(["{}\t{}\t{}\t{}".format(w.form, w.postag, w.head, w.relation) for w in sent])
+        rootrel = "AuxZ"
+        for w in sent :
+            if w.head == '0':
+                rootrel = w.relation
+                break
+        g = DependencyGraph(strsent, cell_separator="\t", top_relation_label=rootrel)
+
+        return g
+
+
+
 
     def export_to_conll(self, annotated_sents, out_file, dialect='2009'):
         """

@@ -1,4 +1,7 @@
 from collections import namedtuple
+from requests import get
+import re
+import functools
 
 def reverse_dict(dic):
     return {v: k for k, v in dic.items()}
@@ -43,3 +46,32 @@ class Morph():
     def full(self):
         return {'pos': self.pos, 'person': self.person, 'number': self.number, 'tense': self.tense, 'mood': self.mood,
                 'voice': self.voice, 'gender': self.gender, 'case': self.case, 'degree': self.degree, }
+
+@functools.lru_cache(maxsize=512)
+def _is_morph_word(word):
+    u = 'http://morph.perseids.org/analysis/word?lang=grc&engine=morpheusgrc&word={}'.format(word)
+    j = get(u).json()
+    try:
+        hasBody = j["RDF"]["Annotation"]["hasBody"]
+        isw = True
+    except KeyError:
+        isw = False
+    return isw
+
+
+
+def fix_bad_apostrophe_words(words):
+    reg = re.compile("\u0313$")
+
+    for i, w in enumerate(words):
+        w = w.replace("\u02bc", "'")
+        if w[-1] == "\u0313":
+            if _is_morph_word(w) == False:
+                words[i] = reg.sub("'", w)
+    return words
+
+def fix_bad_apostrophe_sents(sents):
+    for s in sents:
+        s = fix_bad_apostrophe_words(s)
+
+    return sents

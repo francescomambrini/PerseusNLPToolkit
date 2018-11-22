@@ -16,6 +16,10 @@ def aeschylus():
     return CapitainCorpusReader(root, f)
 
 
+def test_init():
+    import os
+    assert os.path.isdir(root)
+
 def test_para_fileid(aristot_dha):
     assert len(aristot_dha.fileids()) == 1
 
