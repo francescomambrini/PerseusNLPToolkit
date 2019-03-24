@@ -9,7 +9,7 @@ def reverse_dict(dic):
 
 pos = {'-': '-', "d": 'adverb', 'n': 'noun', 'm': 'numeral', 'p': 'pron', 'v': 'verb', 't': 'verb', 'x': 'irregular',
        'l': 'article', 'e': 'exclamation', 'a': 'adjective', 'r': 'preposition', 'c': 'conjunction', 'g': 'adverb',
-       'u': 'punctuation', 'i': 'irregular', }
+       'u': 'punctuation', 'i': 'exclamation', }
 
 person = {'1': "1st", '-': '-', '3': '3rd', '2': '2nd'}
 number = {'s': 'singular', '-': '-', 'p': 'plural', 'd': 'dual'}
