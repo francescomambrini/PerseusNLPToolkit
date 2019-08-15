@@ -40,3 +40,4 @@ def test_word_cites(aristot_dha):
     f = aristot_dha._get_citable_text(aristot_dha.fileids()[0])
     word_cites = aristot_dha._read_words(f, include_cites=True)
     assert word_cites[2006] == ('1.2', "Πάντων")
+>>>>>>> 46bae8e335dcdbfa1797aa69fc47d6cc0273ab6e
