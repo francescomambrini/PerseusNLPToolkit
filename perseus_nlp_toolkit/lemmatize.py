@@ -3,6 +3,9 @@ import re
 from functools import lru_cache
 
 
+class MateLemmatizer:
+    pass
+
 class MorpheusLookupLemmatizer():
     """
     A lemmatizer that performs a simple lookup in a table with forms, tags and lemmata
@@ -74,3 +77,4 @@ class MorpheusLookupLemmatizer():
     def lemmatize_sentences(self, sents, include_cite=False):
         return [self.lemmatize_sentence(s, include_cite=include_cite)
                 for s in sents]
+

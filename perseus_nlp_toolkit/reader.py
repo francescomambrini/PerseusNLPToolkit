@@ -317,9 +317,9 @@ class AGLDTReader(XMLCorpusReader):
     def _is_artificial(self, t):
         try:
             t.attrib["artificial"]
-            return(True)
+            return True
         except KeyError:
-            return(False)
+            return False
 
     def _set_prop_if_there(self, el, p):
         """

@@ -2,6 +2,103 @@ from collections import namedtuple
 from requests import get
 import re
 import functools
+from nltk.internals import java, config_java
+import os
+import tempfile
+from subprocess import PIPE
+
+class MateCaller:
+    def __init__(self, mate_folder, path_to_model, java_options="-Xmx3G"):
+        self._java_options = java_options
+        self._mate_root = mate_folder
+        self._model = path_to_model
+        self._classpath = "anna-3.61.jar"
+
+        # Configure java.
+        config_java(options=self._java_options)
+
+    def _execute(self, java_class, infile, outfile):
+        cwd = os.getcwd()
+        os.chdir(self._mate_root)
+        os.chdir(self._mate_root)
+        cmd = [java_class, "-model", self._model, "-test", infile, "-out", outfile]
+        stdout, stderr = java(cmd, classpath=self._classpath, stdout=PIPE, stderr=PIPE)
+        os.chdir(cwd)
+
+        return stdout, stderr
+
+    def _to_conll09(self, sentences, lemma_col=None, tag_col=None):
+        """Transforms sentence list (each sentence a list of tokens) into a conll09-like tabular file.
+
+        Parameters
+        ----------
+        sentences : iter
+            a list/iterable of sentences. Each sentence is a list of tokens; each token might be a string or a tuple
+            (tok,anno1,anno2,anno_n...)
+
+        Returns
+        -------
+        str : a conll09-like tabular representation of the sentences
+        """
+        Token = namedtuple('Token', ['form', 'lemma', 'pos'])
+        lemma = '_'
+        postag = '_'
+        txt = ''
+        for s in sentences:
+            for idx,w in enumerate(s, start=1):
+                if isinstance(w, str):
+                    w = (w,)
+                if lemma_col:
+                    lemma = w[int(lemma_col)]
+                if tag_col:
+                    _t = w[int(lemma_col)]
+                    postag = "".join([l+'|' for l in _t]).rstrip("|")
+                t = Token(w[0], lemma, postag)
+                # ID FORM LEMMA PLEMMA POS PPOS FEAT PFEAT HEAD PHEAD DEPREL PDEPREL FILLPRED PRED APREDs
+                txt += f"{idx}\t{t.form}\t{t.lemma}\t_\t{t.pos[0]}\t_\t{t.pos}\t_\t_\t_\t_\t_\t_\t_\t_\n"
+            txt += "\n"
+        return txt
+
+    def _conll2tagged(self, conll_sents):
+
+        tagged_sents = []
+        for s in conll_sents:
+            sent = [(l.split("\t")[1], l.split("\t")[5]) for l in s.rstrip().split("\n")]
+            tagged_sents.append(sent)
+        return tagged_sents
+
+    def _annotate_sents(self, sents, j_class, lemma_col, tag_col, outfile=None):
+        from nltk.corpus.reader.util import read_blankline_block
+
+        input_txt = self._to_conll09(sents, lemma_col, tag_col)
+
+        with tempfile.NamedTemporaryFile(mode='w+', delete=True) as input_file, \
+                tempfile.NamedTemporaryFile(mode='w+', delete=True) as output_file:
+
+            # prepare the input file
+            input_file.writelines(input_txt)
+            input_file.flush()
+            stdout, stderr = self._execute(j_class, input_file.name, output_file.name)
+
+            output_file.seek(0)
+
+            conll = []
+            while True:
+                block = read_blankline_block(output_file)
+                if block:
+                    conll.extend(block)
+                else:
+                    break
+        if outfile:
+            with open(outfile, 'w') as out:
+                "\n".join(conll)
+        return conll
+
+    def lemmatize(self, infile, outfile):
+        return self._execute("is2.lemmatizer.Lemmatizer", infile, outfile)
+
+    def parse(self, infile, outfile):
+        return self._execute("is2.parser.Parser", infile, outfile)
 
 def reverse_dict(dic):
     return {v: k for k, v in dic.items()}
